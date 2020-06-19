@@ -1,0 +1,18 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class RotateCamera : MonoBehaviour
+{
+    #region Deklaracija varijabli
+    public GameObject level;
+    public int speed;
+    #endregion
+    private void Start()
+    {
+    }
+    void LateUpdate()
+    {
+        transform.RotateAround(level.transform.position, Vector3.up, speed * Time.deltaTime); //rotira kameru oko objekta
+    }
+}
