@@ -1,0 +1,316 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class BoardManager : MonoBehaviour
+{
+    #region Deklaracija varijabli
+    private UIManager uiManager;
+    public static BoardManager Instance { set; get; }
+    private bool[,] alloweMoves { set; get; }
+    public Chessman[,] Chessmen { set; get; } //Sadrži lokacije svih figura na ploci
+    private Chessman selectedChessman; //Varijabla odabrane figure
+
+    //Varijable za deklaraciju velicine ploce
+    private const float TILE_SIZE = 1.0f;
+    private const float TILE_OFFSET = 0.5f;
+    //Varijable za deklaraciju pozicije odabrane figure
+    private int selectionX = -1;
+    private int selectionY = -1;
+    //Varijable za deklaraciju rotacije bijelih i crnih figura
+    private Quaternion orientationWhite = Quaternion.Euler(0, 0, 0);
+    //Popis svih mogućih figura
+    public List<GameObject> chessmanPrefabs;
+    //Popis figura koje se trenutno nalaze u igri
+    private List<GameObject> activeChessmen = new List<GameObject>();
+
+    public bool playerTwo;
+    //private GameObject playerTwoTurn;
+    //private GameObject playerOneTurn;
+    //Materijali označenih i neoznačenih figura
+    private Material previousMat;
+    public Material selectedMat;
+
+    public int[] EnPassantMove { set; get; }
+    private ParticleSystem stars;
+    public bool isGameActive = true;
+
+    public AudioClip figureEaten;
+    private AudioSource playerAudio;
+    #endregion
+
+    private void Start()
+    {
+        stars = GameObject.Find("StarsAnim").GetComponent<ParticleSystem>();
+        uiManager = GameObject.Find("UIManager").GetComponent<UIManager>();
+        Instance = this;
+        SpawnAllChessmans();
+        playerAudio = GameObject.Find("ChessBoardManager").GetComponent<AudioSource>();
+    }
+    private void Update()
+    {
+
+        DrawChessBoard(); //Poziva metodu crtanja ploce
+        UpdateSelection(); //Daje vrijednosti pozicije miša
+        if (playerTwo)
+        {
+            uiManager.PlayerTwoTurn();
+        }
+        else
+        {
+            uiManager.PlayerOneTurn();
+        }
+
+        if (Input.GetMouseButtonDown(0)) //Jeli igrač stisnuo mišem!
+        {
+            if (selectionX >= 0 && selectionY >= 0) //Jeli stisnuo u granicama ploce
+            {
+                if (selectedChessman == null) //Jeli neka figura već odabrana
+                {
+                    SelectChessman(selectionX, selectionY); //Ako nije, odabire figuru na lokaciji miša
+                }
+                else
+                {
+                    MoveChessman(selectionX, selectionY); //Ako je, pomice figuru na lokaciju miša
+                }
+            }
+        }
+    }
+
+    private void SelectChessman(int x, int y) //Metoda za odabiranje figure
+    {
+        if (isGameActive)
+        {
+            if (Chessmen[x, y] == null) //Nema figure na odabranoj poziciji
+                return;
+
+            if (Chessmen[x, y].isWhite != playerTwo)
+                return;
+            bool hasAtleastOneMove = false;
+            alloweMoves = Chessmen[x, y].PossibleMove();
+            for (int i = 0; i < 8; i++)
+                for (int j = 0; j < 8; j++)
+                    if (alloweMoves[i, j])
+                        hasAtleastOneMove = true;
+            if (!hasAtleastOneMove)
+                return;
+
+            selectedChessman = Chessmen[x, y]; //Pridodjeljuje poziciju odabrane figure
+            previousMat = selectedChessman.GetComponent<MeshRenderer>().material;
+            selectedMat.mainTexture = previousMat.mainTexture; //kopija prošlog materijala
+            selectedChessman.GetComponent<MeshRenderer>().material = selectedMat; //namještanje novog materijala
+            BoardHighlights.Instance.HighlightAllowedMoves(alloweMoves);
+        }
+
+    }
+
+    private void MoveChessman(int x, int y) //Metoda za pomicanje figure
+    {
+        if (alloweMoves[x, y]) //Jeli moguće pomaknuti odabranu figuru
+        {
+            Chessman c = Chessmen[x, y]; //Mjesto na kojem želimo prebaciti figuru
+            if (c != null && c.isWhite != playerTwo) //Ako mjesto nije prazno, i red je da bijeli igrac igra
+            {
+                //Pojeli smo figuru
+
+                //Ako je figura kralj, onda je kraj igre
+                if (c.GetType() == typeof(King))
+                {
+                    isGameActive = false;
+                    EndGame();
+                    return;
+                }
+                stars.transform.position = c.transform.position;
+                stars.Play();
+                playerAudio.PlayOneShot(figureEaten, 1.0f);
+                activeChessmen.Remove(c.gameObject);
+
+                Destroy(c.gameObject);
+            }
+            if (x == EnPassantMove[0] && y == EnPassantMove[1])
+            {
+                if (playerTwo)
+                    c = Chessmen[x, y - 1];
+
+                else
+                    c = Chessmen[x, y + 1];
+
+                stars.transform.position = c.transform.position;
+                stars.Play();
+                playerAudio.PlayOneShot(figureEaten, 1.0f);
+                activeChessmen.Remove(c.gameObject);
+                Destroy(c.gameObject);
+            }
+
+            EnPassantMove[0] = -1;
+            EnPassantMove[1] = -1;
+            if (selectedChessman.GetType() == typeof(Pawn))
+            {
+                if (y == 7)
+                {
+                    activeChessmen.Remove(selectedChessman.gameObject);
+                    Destroy(selectedChessman.gameObject);
+                    SpawnAllChessman(1, x, y);
+                    selectedChessman = Chessmen[x, y];
+                    SpawnAllChessman(1, x, y);
+                }
+                else if (y == 0)
+                {
+                    activeChessmen.Remove(selectedChessman.gameObject);
+                    Destroy(selectedChessman.gameObject);
+                    SpawnAllChessman(1, x, y);
+                    selectedChessman = Chessmen[x, y];
+                }
+                if (selectedChessman.CurrentY == 1 && y == 3)
+                {
+                    EnPassantMove[0] = x;
+                    EnPassantMove[1] = y - 1;
+                }
+                else if (selectedChessman.CurrentY == 6 && y == 4)
+                {
+                    EnPassantMove[0] = x;
+                    EnPassantMove[1] = y + 1;
+                }
+            }
+
+            Chessmen[selectedChessman.CurrentX, selectedChessman.CurrentY] = null; //Micemo trenutnu poziciju jer pomicemo figuru
+            selectedChessman.transform.position = GetTileCenter(x, y);
+            selectedChessman.SetPosition(x, y);
+            Chessmen[x, y] = selectedChessman;
+            playerTwo = !playerTwo; //Daje protivniku da igra
+
+        }
+        selectedChessman.GetComponent<MeshRenderer>().material = previousMat; //Vraća natrag prethodni izgled figure
+        BoardHighlights.Instance.Hidehighlights();
+        selectedChessman = null; //Mice odabranu figuru ako ju nije moguce pomaknuti na odabranu poziciju
+    }
+
+    private void UpdateSelection() //Metoda koja pokazuje poziciju misa!
+    {
+        if (!Camera.main) //Ako kamera nije upaljena
+            return;
+
+        RaycastHit hit;
+        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, 25.0f, LayerMask.GetMask("ChessPlane"))) //Samo ako je miš na ploci
+        {
+            selectionX = (int)hit.point.x; //Daje poziciju miša po x komponenti
+            selectionY = (int)hit.point.z; //Daje poziciju miša po z komponenti
+        }
+        else
+        {
+            selectionX = -1;
+            selectionY = -1;
+        }
+    }
+
+    private void DrawChessBoard()//Metoda koja crta prikaz ploce!
+    {
+        #region Dimenzije ploce
+        Vector3 widthLine = Vector3.right * 8;
+        Vector3 heightLine = Vector3.forward * 8;
+        #endregion
+
+        for (int i = 0; i <= 8; i++)//Crta plocu
+        {
+            Vector3 start = Vector3.forward * i; //Pocetna pozicija za crtanje duzina ploce
+            Debug.DrawLine(start, start + widthLine); //Generira se crta od početne točke, do krajnje točke
+            for (int j = 0; j <= 8; j++) //
+            {
+                start = Vector3.right * j; //Pocetna pozicija za crtanje visina ploce
+                Debug.DrawLine(start, start + heightLine); //Generira se crta od pocetne točke do krajnje točke
+            }
+        }
+
+
+        if (selectionX >= 0 && selectionY >= 0) //Crta x na odabranu poziciju
+        {
+            Debug.DrawLine(
+                Vector3.forward * selectionY + Vector3.right * selectionX,
+                Vector3.forward * (selectionY + 1) + Vector3.right * (selectionX + 1));
+
+            Debug.DrawLine(
+                Vector3.forward * (selectionY + 1) + Vector3.right * selectionX,
+                Vector3.forward * selectionY + Vector3.right * (selectionX + 1));
+        }
+    }
+
+    private void SpawnAllChessman(int index, int x, int y) //Metoda koja postavlja sve figure!
+    {
+        GameObject piece = Instantiate(chessmanPrefabs[index], GetTileCenter(x, y), orientationWhite) as GameObject; //Stvara se kopija figure određenog indeksa, na određenoj poziciji uz određenu rotaciju
+        piece.transform.SetParent(transform); //Postavlja figuru "child" objekt onog objekta na kojem se nalazi skripta
+        Chessmen[x, y] = piece.GetComponent<Chessman>(); //Dodjeljuje stvorene figure u "array"
+        Chessmen[x, y].SetPosition(x, y); //Dodjeljuje lokaciju svakoj figuri u "array-u"
+        activeChessmen.Add(piece); //Figura da se dodaje u popis trenutno aktivnih figura
+    }
+
+    private Vector3 GetTileCenter(int x, int y) //Metoda koja postavlja figuru u centar jedne ploce!
+    {
+        Vector3 origin = Vector3.zero; //Pocetna tocka svih objekata
+        origin.x += (TILE_SIZE * x) + TILE_OFFSET; //Postavlja x koordinatu centra
+        origin.z += (TILE_SIZE * y) + TILE_OFFSET; //Postavlja z koordinatu centra
+        return origin;
+    }
+
+    private void SpawnAllChessmans() //Metoda za postavljanja svih figura!
+    {
+        activeChessmen = new List<GameObject>();
+        Chessmen = new Chessman[8, 8];
+        EnPassantMove = new int[2] { -1, -1 };
+        #region Postavljanje bijelih figura
+        //Kralj
+        SpawnAllChessman(3, 4, 0);
+        //Kraljica
+        SpawnAllChessman(9, 3, 0);
+        //Top
+        SpawnAllChessman(11, 0, 0);
+        SpawnAllChessman(11, 7, 0);
+        //Lovac
+        SpawnAllChessman(1, 2, 0);
+        SpawnAllChessman(1, 5, 0);
+        //Skakač
+        SpawnAllChessman(5, 1, 0);
+        SpawnAllChessman(5, 6, 0);
+        //Pješak
+        for (int i = 0; i < 8; i++)
+        {
+            SpawnAllChessman(7, i, 1);
+        }
+        #endregion
+
+        #region Postavljanje crnih figura
+        //Kralj
+        SpawnAllChessman(2, 4, 7);
+        //Kraljica
+        SpawnAllChessman(8, 3, 7);
+        //Top
+        SpawnAllChessman(10, 0, 7);
+        SpawnAllChessman(10, 7, 7);
+        //Lovac
+        SpawnAllChessman(0, 2, 7);
+        SpawnAllChessman(0, 5, 7);
+        //Skakač
+        SpawnAllChessman(4, 1, 7);
+        SpawnAllChessman(4, 6, 7);
+        //Pješak
+        for (int i = 0; i < 8; i++)
+        {
+            SpawnAllChessman(6, i, 6);
+        }
+
+        #endregion
+    }
+
+    private void EndGame() //Metoda kraja igre!
+    {
+        playerAudio.PlayOneShot(figureEaten, 1.0f);
+        if (playerTwo)
+        {
+            uiManager.PlayerTwoWins();
+        }
+        else
+        {
+            uiManager.PlayerOneWins();
+
+        }
+    }
+}
