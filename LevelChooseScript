@@ -1,0 +1,102 @@
+using System.Collections;
+using System.Collections.Generic;
+using JetBrains.Annotations;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class LevelChooseScript : MonoBehaviour
+{
+    #region
+    public GameObject[] levels;
+    public int currentLevel = 0;
+    public GameObject[] levelNames;
+    private int levelNumber;
+    private bool loadScene = false;
+    public Text loadingText;
+    public GameObject chooseButton;
+    #endregion
+    private void Update()
+    {
+        if(currentLevel == 0)
+        {
+            levelNumber = 1;
+            levels[0].gameObject.SetActive(true);
+            levels[1].gameObject.SetActive(false);
+            levels[2].gameObject.SetActive(false);
+            levelNames[0].gameObject.SetActive(true);
+            levelNames[1].gameObject.SetActive(false);
+            levelNames[2].gameObject.SetActive(false);
+        }
+        else if (currentLevel == 1)
+        {
+            levelNumber = 2;
+            levels[0].gameObject.SetActive(false);
+            levels[1].gameObject.SetActive(true);
+            levels[2].gameObject.SetActive(false);
+            levelNames[0].gameObject.SetActive(false);
+            levelNames[1].gameObject.SetActive(true);
+            levelNames[2].gameObject.SetActive(false);
+        }
+        if (currentLevel == 2)
+        {
+            levelNumber = 3;
+            levels[0].gameObject.SetActive(false);
+            levels[1].gameObject.SetActive(false);
+            levels[2].gameObject.SetActive(true);
+            levelNames[0].gameObject.SetActive(false);
+            levelNames[1].gameObject.SetActive(false);
+            levelNames[2].gameObject.SetActive(true);
+        }
+        if (loadScene)
+        {
+            loadingText.color = new Color(loadingText.color.r, loadingText.color.g, loadingText.color.b, Mathf.PingPong(Time.time, 1));
+            chooseButton.gameObject.SetActive(false);
+        }
+    }
+    public void NextButton()
+    {
+        if (currentLevel + 1 < levels.Length)
+        {
+            currentLevel++;
+        }
+    }
+
+    public void BackButton()
+    {
+        if (currentLevel - 1 >= 0)
+        {
+            currentLevel--;
+        }
+    }
+
+    public void ChooseLevel()
+    {
+        loadScene = true;
+        loadingText.gameObject.SetActive(true);
+        StartCoroutine(LoadNewScene());
+    }
+    IEnumerator LoadNewScene()
+    {
+
+        yield return new WaitForSeconds(3);
+
+        AsyncOperation async = SceneManager.LoadSceneAsync(levelNumber);
+    }
+
+    public void LoadMenu()
+    {
+        loadScene = true;
+        loadingText.gameObject.SetActive(true);
+        StartCoroutine(LoadMainMenu());
+    }
+
+    IEnumerator LoadMainMenu()
+    {
+
+        yield return new WaitForSeconds(3);
+
+        AsyncOperation async = SceneManager.LoadSceneAsync(0);
+    }
+
+}
