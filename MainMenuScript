@@ -1,0 +1,50 @@
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class MainMenu : MonoBehaviour
+{
+    #region Variable declaration
+    public int chooseLevel;
+    private bool loadScene = false;
+    public Text loadingText;
+    private int scene = 4;
+    public GameObject playButton;
+    public GameObject exitButton;
+    #endregion
+
+    private void Update()
+    {
+        if (loadScene)
+        {
+            loadingText.color = new Color(loadingText.color.r, loadingText.color.g, loadingText.color.b, Mathf.PingPong(Time.time, 1));
+            playButton.gameObject.SetActive(false);
+            exitButton.gameObject.SetActive(false);
+        }
+
+    }
+    public void ChooseLevel()
+    {
+        loadScene = true;
+        loadingText.gameObject.SetActive(true);
+        
+        StartCoroutine(LoadNewScene());
+        //Metoda koja daje tipki mogućnost pokretanja 
+        //SceneManager.LoadScene(chooseLevel);
+    }
+    IEnumerator LoadNewScene()
+    {
+
+        yield return new WaitForSeconds(3);
+
+        AsyncOperation async = SceneManager.LoadSceneAsync(scene);
+    }
+    public void ExitGame()
+    {
+        //Metoda koja daje tipki mogućnost izlaska iz igre
+        Application.Quit();
+    }
+}
