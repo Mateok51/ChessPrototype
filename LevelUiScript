@@ -1,0 +1,79 @@
+using System.Collections;
+using System.Collections.Generic;
+using JetBrains.Annotations;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class UIManager : MonoBehaviour
+{
+    #region Deklaracija varijabli
+    private BoardManager boardManagerScript;
+    public GameObject playerTwoWinsSign;
+    public GameObject playerOneWinsSign;
+    public GameObject endingPanel;
+    public GameObject restartButton;
+    public GameObject mainMenuButtonOne;
+    private int activeScene;
+    private int mainMenuScene = 0;
+    public GameObject playerTwoTurn;
+    public GameObject playerOneTurn;
+    public GameObject mainMenuButtonTwo;
+    #endregion
+
+
+    private void Start()
+    {
+        boardManagerScript = GameObject.Find("ChessBoardManager").GetComponent<BoardManager>();
+        activeScene = SceneManager.GetActiveScene().buildIndex;
+        
+    }
+    public void PlayerTwoTurn()
+    {
+        if(boardManagerScript.isGameActive)
+        {
+            playerTwoTurn.SetActive(true);
+            playerOneTurn.SetActive(false);
+        }
+        
+    }
+
+    public void PlayerOneTurn()
+    {
+        if (boardManagerScript.isGameActive)
+        {
+            playerOneTurn.SetActive(true);
+            playerTwoTurn.SetActive(false);
+        }
+        
+    }
+
+    public void PlayerTwoWins()
+    {
+        playerTwoTurn.gameObject.SetActive(false);
+        playerTwoWinsSign.gameObject.SetActive(true);
+        endingPanel.gameObject.SetActive(true);
+        restartButton.gameObject.SetActive(true);
+        mainMenuButtonOne.gameObject.SetActive(false);
+        mainMenuButtonTwo.gameObject.SetActive(true);
+    }
+
+    public void PlayerOneWins()
+    {
+        playerOneTurn.gameObject.SetActive(false);
+        playerOneWinsSign.gameObject.SetActive(true);
+        endingPanel.gameObject.SetActive(true);
+        restartButton.gameObject.SetActive(true);
+        mainMenuButtonOne.gameObject.SetActive(false);
+        mainMenuButtonTwo.gameObject.SetActive(true);
+    }
+
+    public void Restart()
+    {
+        SceneManager.LoadScene(activeScene);
+    }
+    public void MainMenu()
+    {
+        SceneManager.LoadScene(mainMenuScene);
+    }
+
+}
